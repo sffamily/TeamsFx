@@ -63,7 +63,8 @@ And **the latest version of Node.js LTS v14** would be recommended to be install
 ### Mitigation
 Please refer to [the guide](#how-to-install-nodejs) to install `Node.js`.
 
-## FailToInstallDotnet
+## FailToInstallDotnet <a name="functionFailToInstallDotnet"></a><a name="localdebugFailToInstallDotnet"></a>
+
 ### Notification Message
 > Failed to install .NET Core SDK (v3.1), please install it manually and restart all your Visual Studio Code instances.
 
