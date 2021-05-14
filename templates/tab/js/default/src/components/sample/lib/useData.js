@@ -12,6 +12,8 @@ export function useData(asyncFn, options) {
           return { data, loading: false, error: null };
         case "error":
           return { data: null, loading: false, error };
+        default:
+          return {};
       }
     },
     { data: null, loading: !!auto, error: null }

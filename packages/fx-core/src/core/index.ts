@@ -44,6 +44,7 @@ import {
   ProjectSettings,
   SubscriptionInfo,
   MsgLevel,
+  AzureSolutionSettings,
 } from "@microsoft/teamsfx-api";
 import * as path from "path";
 import * as error from "./error";
@@ -72,10 +73,8 @@ import {
   ScratchOrSampleSelect,
 } from "./question";
 import * as jsonschema from "jsonschema";
-import { AzureSubscription, getSubscriptionList } from "./loginUtils";
 import { sleep } from "../plugins/resource/spfx/utils/utils";
 import AdmZip from "adm-zip";
-import { getResourceFolder } from "..";
 
 class CoreImpl implements Core {
   private target?: CoreImpl;
@@ -623,7 +622,11 @@ class CoreImpl implements Core {
           this.ctx.treeProvider?.add([subItem[0]]);
 
           if (validFxProject && !subItem[1]) {
-            await selectSubscriptionCallback();
+            const azureSolutionSettings = this.ctx.projectSettings
+              ?.solutionSettings as AzureSolutionSettings;
+            if ("Azure" === azureSolutionSettings.hostType) {
+              await selectSubscriptionCallback();
+            }
           }
         }
 
@@ -1060,7 +1063,7 @@ class CoreImpl implements Core {
             description: "",
             author: "",
             scripts: {
-              test: 'echo "Error: no test specified" && exit 1',
+              test: "echo \"Error: no test specified\" && exit 1",
             },
             license: "MIT",
           },
