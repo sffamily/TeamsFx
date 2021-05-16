@@ -35,7 +35,6 @@ export interface Core {
      * Core module will not open the created project, extension will do this
      */
     createProject: (systemInputs: Inputs, ui: UserInterface) => Promise<Result<string, FxError>>;
-
     /**
      * provision resource to cloud
      */

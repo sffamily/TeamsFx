@@ -4,7 +4,7 @@
 
 import * as fs from "fs-extra";
 import { HookContext, NextFunction, Middleware } from "@feathersjs/hooks";
-import { err,  ConfigFolderName} from "fx-api";
+import { err,  ConfigFolderName, TeamsSolutionSetting} from "fx-api";
 import * as error from "../error";
 import { CoreContext } from "../context";
  
@@ -25,7 +25,6 @@ export const writeConfigMW: Middleware = async (
 
       if(coreCtx.solutionContext){
         coreCtx.projectSetting.solutionSetting = coreCtx.solutionContext.solutionSetting;
-        coreCtx.projectState.solutionState = coreCtx.solutionContext.solutionState;
       }
      
       try { 
@@ -34,7 +33,7 @@ export const writeConfigMW: Middleware = async (
         await fs.writeFile(  `${configFolder}\\state.json`, JSON.stringify(coreCtx.projectState, null, 4)  );
         const envName = coreCtx.projectSetting.currentEnv;
         // provision,deploy template
-        const resources = coreCtx.projectSetting.solutionSetting?.resources;
+        const resources = ((coreCtx.projectSetting.solutionSetting) as TeamsSolutionSetting).activeResourcePlugins;
   
         //only create project need to persist template files
         if(ctx.method === "create" && resources && resources.length > 0){

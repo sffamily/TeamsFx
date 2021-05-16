@@ -3,38 +3,37 @@
 "use strict";
 
 import { Result } from "neverthrow";  
-import { Context, SolutionSetting, SolutionState, EnvMeta, FunctionRouter, FxError, Inputs, QTreeNode, ResourceConfigs, ResourceTemplates, Task, TokenProvider, Void, ResourceInstanceValues, StateValues, Func } from "./index";
+import { Context, SolutionSetting, EnvMeta, FunctionRouter, FxError, Inputs, QTreeNode, Task, TokenProvider, Void, Func, ProjectState, Json } from "./index";
 
 
 
 export interface SolutionContext extends Context{
     solutionSetting: SolutionSetting;
-    solutionState: SolutionState;
 }
 
 
 export interface SolutionEnvContext  extends SolutionContext {
     env: EnvMeta;
     tokenProvider: TokenProvider;
-    resourceConfigs: ResourceConfigs;
+    resourceConfigs: Record<string, Json>;
 }
 
 export interface SolutionScaffoldResult{
-    provisionTemplates:ResourceTemplates;
-    deployTemplates: ResourceTemplates
+    provisionTemplates:Record<string, Json>;
+    deployTemplates: Record<string, Json>;
 }
  
 export interface SolutionAllContext extends SolutionContext {
     env: EnvMeta;
     tokenProvider: TokenProvider;
-    provisionConfigs?: ResourceConfigs;
-    deployConfigs?: ResourceConfigs;
+    provisionConfigs?: Record<string, Json>;
+    deployConfigs?: Record<string, Json>;
 }
 
 
 export interface ResourceEnvResult {
-    resourceValues: ResourceInstanceValues,
-    stateValues: StateValues
+    resourceValues: Json;
+    stateValues: Json;
 }
  
 
@@ -63,13 +62,8 @@ export interface SolutionPlugin {
      * deploy will output VariableDict even error happends
      */
     deployArtifacts: (ctx: SolutionEnvContext, inputs: Inputs) => Promise<Result<ResourceEnvResult, FxError & {result:ResourceEnvResult}>>;
- 
-    /**
-     * publish
-     * TODO: Just need manifest
-     */
+  
     publishApplication: (ctx: SolutionAllContext, inputs: Inputs) => Promise<Result<ResourceEnvResult, FxError>>;
-
     /**
      * get question model for lifecycle {@link Task} (create, provision, deploy, publish), Questions are organized as a tree. Please check {@link QTreeNode}.
      */

@@ -19,5 +19,5 @@ export interface Tools
     tokenProvider: TokenProvider;
     telemetryReporter: TelemetryReporter;
     treeProvider: TreeProvider;
-    ui: UserInterface;
+    userInterface: UserInterface;
 }

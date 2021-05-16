@@ -1,6 +1,5 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
-"use strict";
 
 import {
   FxError,
@@ -16,17 +15,13 @@ import {
   Task,
   FunctionRouter,
   UserError,
-  err,
-  StringValidation,
   ProjectSetting,
   ConfigFolderName,
   ProjectState,
-  ResourceTemplates,
-  ResourceTemplate,
-  ResourceInstanceValues,
-  StateValues,
   ProjectConfigs,
-  Func
+  Func,
+  Json,
+  TeamsSolutionSetting
 } from "fx-api";
 import { hooks } from "@feathersjs/hooks";
 import { concurrentMW } from "./middlewares/concurrent";
@@ -34,11 +29,8 @@ import { errorHandlerMW } from "./middlewares/errorhandle";
 import { DefaultSolution } from "../plugins/solution/default";
 import { CoreContext } from "./context";
 import { Executor } from "./executor";
-import * as path from "path";
 import * as fs from "fs-extra";
 import * as error from "./error";
-import * as jsonschema from "jsonschema";
-import { CoreQuestionNames, QuestionAppName } from "./question";
 
 export let GlobalTools:Tools;
 
@@ -60,21 +52,22 @@ export class FxCore implements Core {
       ...GlobalTools,
       projectPath: "",
       projectSetting:{
-        name: "myapp",
+         
         environments:
         {
           default: {name:"default", local:false, sideloading:false}
         },
         currentEnv: "default",
         solutionSetting:{
-          name:"fx-solution-default",
-          version:"1.0.0",
+          appName: "myapp",
+          solutionName:"fx-solution-default",
+          solutionVersion:"1.0.0",
           resources:[],
           resourceSettings:{}
         }
       },
       projectState: {
-          solutionState:{resourceStates:{}}
+        resourceStates:{}
       },
       globalSolutions: this.globalSolutions
     };
@@ -85,25 +78,25 @@ export class FxCore implements Core {
       const projectSetting:ProjectSetting = await fs.readJson(`${projectPath}\\.${ConfigFolderName}\\setting.json`);
       const projectStates:ProjectState = await fs.readJson(`${projectPath}\\.${ConfigFolderName}\\state.json`);
       const envName = projectSetting.currentEnv;
-      const resources = projectSetting.solutionSetting?.resources;
-      const privisionTemplates:ResourceTemplates = {};
-      const deployTemplates:ResourceTemplates = {};
+      const resources = ((projectSetting.solutionSetting) as TeamsSolutionSetting).activeResourcePlugins;
+      const privisionTemplates:Record<string,Json> = {};
+      const deployTemplates:Record<string,Json> = {};
       if(resources){
         for(const resource of resources){
-          const provisionTempalte: ResourceTemplate = await fs.readJson(`${projectPath}\\.${ConfigFolderName}\\${resource}.provision.tpl.json`);
-          const deployTempalte: ResourceTemplate = await fs.readJson(`${projectPath}\\.${ConfigFolderName}\\${resource}.deploy.tpl.json`);
+          const provisionTempalte: Json = await fs.readJson(`${projectPath}\\.${ConfigFolderName}\\${resource}.provision.tpl.json`);
+          const deployTempalte: Json = await fs.readJson(`${projectPath}\\.${ConfigFolderName}\\${resource}.deploy.tpl.json`);
           privisionTemplates[resource] = provisionTempalte;
           deployTemplates[resource] = deployTempalte;
         }
       }
       const resourceValueFile = `${projectPath}\\.${ConfigFolderName}\\${envName}.userdata.json`;
-      let resourceInstanceValues:ResourceInstanceValues|undefined = undefined;
+      let resourceInstanceValues:Json|undefined = undefined;
       if(await fs.pathExists(resourceValueFile)){
         resourceInstanceValues = await fs.readJson(resourceValueFile);
       }
 
       const stateValueFile = `${projectPath}\\.${ConfigFolderName}\\${envName}.state.json`;
-      let stateValues:StateValues|undefined = undefined;
+      let stateValues:Json|undefined = undefined;
       if(await fs.pathExists(stateValueFile)){
         stateValues = await fs.readJson(stateValueFile);
       }
@@ -140,33 +133,6 @@ export class FxCore implements Core {
   @hooks([errorHandlerMW])
   public async createProject(inputs: Inputs): Promise<Result<string, FxError>> {
     const coreContext = this.buildCleanCoreContext();
-    const appName = inputs[CoreQuestionNames.AppName] as string;
-    const folder = inputs[CoreQuestionNames.Foler] as string;
-    const projectPath = path.resolve(`${folder}/${appName}`);
-    const folderExist = await fs.pathExists(projectPath);
-    if (folderExist) {
-      return err(
-        new UserError(
-          error.CoreErrorNames.ProjectFolderExist,
-          `Project folder exsits:${projectPath}`,
-          error.CoreSource
-        )
-      );
-    }
-    const validateResult = jsonschema.validate(appName, {
-      pattern: (QuestionAppName.validation as StringValidation).pattern,
-    });
-    if (validateResult.errors && validateResult.errors.length > 0) {
-      return err(
-        new UserError(
-          error.CoreErrorNames.InvalidInput,
-          `${validateResult.errors[0].message}`,
-          error.CoreSource
-        )
-      );
-    }  
-    coreContext.projectSetting.name = appName;
-    coreContext.projectPath = projectPath;
     return await Executor.create(coreContext, inputs);
   }
 

@@ -90,7 +90,7 @@ export async function activate(): Promise<Result<Void, FxError>> {
       },
       telemetryReporter: telemetry,
       treeProvider:CommandsTreeViewProvider.getInstance(),
-      ui: VS_CODE_UI
+      userInterface: VS_CODE_UI
     };
     core = new FxCore(tools); 
     const workspacePath: string | undefined = workspace.workspaceFolders?.length? workspace.workspaceFolders[0].uri.fsPath : undefined;
@@ -232,29 +232,7 @@ export async function runCommand(task: Task): Promise<Result<unknown, FxError>> 
       throw checkCoreRes.error;
     }
  
-
-    // 4. getQuestions
-    const qres = await core.getQuestionsForLifecycleTask(task, globalInputs);
-    if (qres.isErr()) {
-      throw qres.error;
-    }
-
-    
-    VsCodeLogInstance.info(`VS Code Environment: ${globalInputs.vscodeEnv}`);
-
-    // 5. run question model
     const inputs = deepCopy(globalInputs);
-    const node = qres.value;
-    if (node) {
-      VsCodeLogInstance.info(`Question tree:${JSON.stringify(node, null, 4)}`);
-      const res: InputResult = await traverse(node, inputs, VS_CODE_UI);
-      VsCodeLogInstance.info(`User input:${JSON.stringify(inputs)}`);
-      if (res.type === InputResultType.error) {
-        throw res.error!;
-      } else if (res.type === InputResultType.cancel || res.type === InputResultType.back) {
-        throw new UserError(ExtensionErrors.UserCancel, "User Cancel", ExtensionSource);
-      }
-    }
 
     // 6. run task
     if (task === Task.create){

@@ -1,21 +1,28 @@
-import { Context,ResourceTemplates, SolutionContext, SolutionPlugin, TokenProvider, ResourceInstanceValues, StateValues} from "fx-api";
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 
+import {
+  Context,
+  Json,
+  SolutionContext,
+  SolutionPlugin,
+  TokenProvider,
+} from "fx-api";
 
-export interface CoreContext extends Context{
+export interface CoreContext extends Context {
+  globalSolutions: Map<string, SolutionPlugin>;
 
-    globalSolutions: Map<string, SolutionPlugin>;
+  solution?: SolutionPlugin;
 
-    solution?:SolutionPlugin;
+  provisionTemplates?: Record<string, Json>;
 
-    provisionTemplates?:ResourceTemplates;
+  deployTemplates?: Record<string, Json>;
 
-    deployTemplates?: ResourceTemplates;
+  resourceInstanceValues?: Json;
 
-    resourceInstanceValues?: ResourceInstanceValues;
+  stateValues?: Json;
 
-    stateValues?: StateValues;
+  tokenProvider: TokenProvider;
 
-    tokenProvider: TokenProvider;
-
-    solutionContext?: SolutionContext;
+  solutionContext?: SolutionContext;
 }

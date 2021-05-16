@@ -2,45 +2,14 @@
 // Licensed under the MIT license.
 "use strict";
 
-import { OptionItem , AnswerValue} from "./qm";
 import { Platform, VsCodeEnv } from "./constants";
 import { LogProvider, TelemetryReporter } from "./utils";
 import { UserInterface } from "./ui";
-
-export type ConfigValue =
-    | string
-    | string[]
-    | number
-    | number[]
-    | boolean
-    | boolean[]
-    | OptionItem[]
-    | OptionItem
-    | undefined
-    | unknown;
  
 // eslint-disable-next-line @typescript-eslint/ban-types
 export type Void = {};
 export const Void = {};
-
-export  interface Dict<T> {
-    [key: string]: T | undefined;
-}
-
-export type ResourceTemplate = Dict<string>;
-
-export type ResourceTemplates = Dict<ResourceTemplate>;
-
-export type ResourceConfig = ResourceTemplate;
-
-export type ResourceConfigs = ResourceTemplates;
-
-export type ReadonlyResourceConfig = Readonly<ResourceConfig>;
-
-export type ReadonlyResourceConfigs = Readonly<{
-    [k:string]:ReadonlyResourceConfig|undefined;
-}>;
-
+  
 
 /**
  * environment meta data
@@ -51,38 +20,16 @@ export interface EnvMeta{
     sideloading:boolean
 }
 
-export type ResourceInstanceValues = Dict<ConfigValue>;
-
-export type StateValues = Dict<ConfigValue>;
+export type Json = Record<string,unknown>;
 
 /**
  * project static settings
  */
-export interface ProjectSetting extends Dict<ConfigValue>{
-    /**
-     * id name
-     */
-    name:string;
-    /**
-     * display name
-     */
-    displayName?:string;
-    
-    /**
-     * solution settings
-     */
+export interface ProjectSetting extends Json{
     solutionSetting:SolutionSetting;
-
-    /**
-     * environments
-     */
     environments: {
         [k : string] : EnvMeta;
     };
-
-    /**
-     * current environment name
-     */
     currentEnv: string;
 }
 
@@ -90,101 +37,47 @@ export interface ProjectSetting extends Dict<ConfigValue>{
 /**
  * solution settings
  */
-export interface SolutionSetting extends Dict<ConfigValue>{
-    
-    /**
-     * solution name
-     */
-    name:string;
-
-    /**
-     * solution display name
-     */
-    displayName?: string;
-    
-    /**
-     * version
-     */
-    version:string;
-
-    /**
-     * active resource plugin names
-     */
-    resources:string[];
-
-    /**
-     * resource settings map,key is resource name, value is resource settings
-     */
-    resourceSettings: {
-        [k:string]:ResourceSetting
-    }
-}
-
-export type ResourceSetting = Dict<ConfigValue>;
-
-
-export interface AzureSolutionSetting extends SolutionSetting{
-    capabilities:string[],
-    hostType?:string,
-    azureResources?:string[]
-}
-
-/**
- * project dynamic states
- */
-export interface ProjectState extends Dict<ConfigValue>{
-    solutionState:SolutionState;
+export interface SolutionSetting extends Json{  
+    appName:string;   
+    solutionName:string;
+    solutionVersion?:string;
 }
  
-export interface SolutionState extends Dict<ConfigValue>{
-     resourceStates: {
-        [k:string]:ResourceState
-    }
+export interface TeamsSolutionSetting extends SolutionSetting{
+    hostType: string;
+    capabilities: string[];
+    azureResources: string[];
+    activeResourcePlugins: string[];
+    resourceSettings: Record<string, Json>;
+}
+ 
+export interface ProjectState extends Json{
+    resourceStates: Record<string, Json>;
 }
 
-export type ResourceState = Dict<ConfigValue>;
-
-export interface Inputs extends Dict<AnswerValue>{
+export interface Inputs extends Json{
     projectPath:string;
     platform: Platform;
     vscodeEnv?:VsCodeEnv;
 }    
-
-export interface Json{
-    [k : string]:unknown;
-}
-
-/*
- * Context is env independent
- */
+  
 export interface Context {
-    /**
-     * project folder path, not persist
-     */
+     
     projectPath: string;
-
-    /**
-     * ui interface
-     */
-    ui: UserInterface;
-
-    /**
-     * log util tool
-     */
+ 
+    userInterface: UserInterface;
+ 
     logProvider: LogProvider;
-
-    /**
-     * telemetry tool
-     */
+ 
     telemetryReporter: TelemetryReporter;
 
     /**
-     * Static settings
+     * Static setting
      */
     projectSetting: ProjectSetting; 
 
     /**
-     * Dynamic states
+     * Dynamic state
      */
     projectState: ProjectState;
 }
@@ -195,10 +88,10 @@ export interface Context {
 export interface ProjectConfigs{
     projectSetting: ProjectSetting; 
     projectState: ProjectState;
-    provisionTemplates?:ResourceTemplates;
-    deployTemplates?: ResourceTemplates;
-    provisionConfigs?:ResourceConfigs;
-    deployConfigs?: ResourceConfigs;
-    resourceInstanceValues?: ResourceInstanceValues;
-    stateValues?: StateValues;
+    provisionTemplates?:Record<string, Json>;
+    deployTemplates?: Record<string, Json>;
+    provisionConfigs?:Record<string, Json>;
+    deployConfigs?: Record<string, Json>;
+    resourceInstanceValues?: Json;
+    stateValues?: Json;
 }

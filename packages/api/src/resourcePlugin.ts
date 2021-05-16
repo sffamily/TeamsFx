@@ -1,47 +1,45 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
-"use strict";
   
 import { Result } from "neverthrow"; 
-import { ResourceSetting, ResourceState,Context, EnvMeta, FunctionRouter, FxError, Inputs, QTreeNode, ReadonlyResourceConfig, ReadonlyResourceConfigs, ResourceConfig, ResourceTemplate, Task, TokenProvider, Void, SolutionAllContext, ResourceEnvResult, Func } from "./index";
+import {  Context, EnvMeta, FunctionRouter, FxError, Inputs, QTreeNode, Task, TokenProvider, Void, ResourceEnvResult, Func, Json } from "./index";
 
 
 export interface ResourceContext extends Context {
-    resourceSettings: ResourceSetting;
-    resourceStates: ResourceState;
+    resourceSettings: Json;
+    resourceStates: Json;
 }
 
 export interface ResourceScaffoldResult{
-    provision:ResourceTemplate;
-    deploy:ResourceTemplate
+    provision:Json;
+    deploy:Json
 }
 
 
 export interface ResourceEnvContext  extends ResourceContext {
     envMeta: EnvMeta;
     tokenProvider: TokenProvider;  
-    commonConfig: ReadonlyResourceConfig;
-    selfConfig: ResourceConfig;
+    commonConfig: Json;
+    selfConfig: Json;
 }
 
 export interface ResourceConfigureContext extends ResourceEnvContext
 {
-    allProvisionConfigs: ReadonlyResourceConfigs;
+    allProvisionConfigs: Record<string, Json>;
 }
  
 
 export interface ResourceAllContext  extends ResourceContext {
     envMeta: EnvMeta;
     tokenProvider: TokenProvider;  
-    provisionConfig?: ResourceConfig;
-    deployConfig?: ResourceConfig;
+    provisionConfig?: Json;
+    deployConfig?: Json;
 }
 
-export interface ResourceAllContext  extends ResourceContext {
+export interface ResourcePublishContext  extends ResourceContext {
     envMeta: EnvMeta;
     tokenProvider: TokenProvider;  
-    provisionConfig?: ResourceConfig;
-    deployConfig?: ResourceConfig;
+    manifest: Json;
 }
 
  
@@ -50,42 +48,20 @@ export interface ResourcePlugin {
     name:string,
 
     displayName:string,
-
-    /**
-     * scaffold source code on disk
-     */
+ 
     scaffoldSourceCode?: (ctx: ResourceContext, inputs: Inputs) => Promise<Result<Void, FxError>>;  
-
-    /**
-     * scaffold a memory version of config template (provision and deploy are seperated)
-     */
+ 
     scaffoldResourceTemplate?: (ctx: ResourceContext, inputs: Inputs) => Promise<Result<ResourceScaffoldResult, FxError>>; 
-    
-    /**
-     * provision resource to cloud, output variable dictionary data
-     */
+     
     provisionResource?: (ctx: ResourceEnvContext, inputs: Inputs) => Promise<Result<ResourceEnvResult, FxError>>;
-
-    /**
-     * Configure provisioned resources.  TODO:renaming
-     */
+ 
     configureResource?: (ctx: ResourceConfigureContext) => Promise<Result<Void, FxError>>;
 
-    /**
-     * build artifacts
-     */
     buildArtifacts?: (ctx: ResourceContext, inputs: Inputs) => Promise<Result<Void, FxError>>;
 
-    /**
-     * deploy resource   confirm the output??
-     */
     deployArtifacts?: (ctx: ResourceEnvContext, inputs: Inputs) => Promise<Result<ResourceEnvResult, FxError>>;
 
-    /**
-     * publish app confirm the output??
-     * TODO: Just need manifest
-     */
-    publishApplication?: (ctx: SolutionAllContext, inputs: Inputs) => Promise<Result<ResourceEnvResult, FxError>>;
+    publishApplication?: (ctx: ResourcePublishContext, inputs: Inputs) => Promise<Result<ResourceEnvResult, FxError>>;
    
     /**
      * get question model for lifecycle {@link Task} (create, provision, deploy, publish), Questions are organized as a tree. Please check {@link QTreeNode}.

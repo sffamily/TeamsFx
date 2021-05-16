@@ -2,7 +2,7 @@
 // Licensed under the MIT license.
 
 import { FxError } from "../error";
-import { AnswerValue, FuncQuestion, OptionItem, StaticOption } from "../qm/question";
+import { FuncQuestion, StaticOptions } from "../qm/question";
 
 
 export interface FxUIOption{
@@ -14,14 +14,14 @@ export interface FxUIOption{
 }
 
 export interface FxSingleQuickPickOption extends FxUIOption{
-  items: StaticOption;
-  defaultValue?: string;
+  options: StaticOptions;
+  default?: string;
   returnObject?: boolean;
 }
 
 export interface FxMultiQuickPickOption extends FxUIOption{
-  items: StaticOption;
-  defaultValue?: string[];
+  options: StaticOptions;
+  default?: string[];
   returnObject?: boolean;
   onDidChangeSelection?: (currentSelectedIds: Set<string>, previousSelectedIds: Set<string>) => Promise<Set<string>>;
   validation?: (input: string[]) => string|undefined|Promise<string|undefined>;
@@ -29,8 +29,7 @@ export interface FxMultiQuickPickOption extends FxUIOption{
 
 export interface FxInputBoxOption extends FxUIOption{
   password?: boolean;
-  number?:boolean;
-  defaultValue?: string;
+  default?: string;
   validation?: (input: string) => Promise<string | undefined>;
 }
 
@@ -38,7 +37,7 @@ export interface FxFileSelectorOption extends FxUIOption{
     /**
      * The resource the dialog shows when opened.
      */
-    defaultUri?: string;
+    default?: string;
 
     /**
      * A human-readable string for the open button.
@@ -72,7 +71,7 @@ export interface FxFileSelectorOption extends FxUIOption{
      */
     filters?: { [name: string]: string[] };
 
-    validation?: (input: string) => string | undefined | Promise<string | undefined>;
+    validation?: (input: string|string[]) => string | undefined | Promise<string | undefined>;
 }
 
 export enum InputResultType {
@@ -80,12 +79,12 @@ export enum InputResultType {
   back = "back",
   sucess = "sucess",
   error = "error",
-  pass = "pass" // for single select option quick pass it
+  skip = "skip"
 }
 
 export interface InputResult{
   type: InputResultType;
-  result?: AnswerValue;
+  result?: unknown;
   error?: FxError;
 }
 
@@ -129,6 +128,6 @@ export interface UserInterface{
   showFileSelector: (option: FxFileSelectorOption) => Promise<InputResult>;
   createProgressBar?: (title: string, totalSteps: number) => IProgressHandler;
   openExternal?(link: string): Promise<boolean>;
-  showMessage?(level:MsgLevel, message: string, ...items: string[]): Promise<string | undefined>;
+  showMessage?(level:MsgLevel, message: string, modal: boolean, ...items: string[]): Promise<string | undefined>;
 }
    

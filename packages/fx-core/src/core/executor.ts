@@ -18,15 +18,18 @@ import {
   Void,
   EnvMeta,
   SolutionEnvContext,
-  ResourceConfigs,
   Task,
   SolutionAllContext,
   FunctionRouter,
   SolutionScaffoldResult,
-  OptionItem,
   ResourceEnvResult,
   ProjectConfigs,
   Func,
+  TeamsSolutionSetting,
+  Json,
+  InputResult,
+  traverse,
+  InputResultType,
 } from "fx-api";
 import { hooks } from "@feathersjs/hooks";
 import { writeConfigMW } from "./middlewares/config";
@@ -35,16 +38,28 @@ import * as error from "./error";
 import { CoreContext } from "./context";
 import { DefaultSolution } from "../plugins/solution/default";
 import { deepCopy, initFolder, mergeDict, replaceTemplateVariable } from "./tools";
-import { CoreQuestionNames, QuestionAppName, QuestionEnvLocal, QuestionEnvName, QuestionEnvSideLoading, QuestionRootFolder, QuestionSelectEnv, QuestionSelectSolution, SampleSelect, ScratchOptionNo, ScratchOptionYes, ScratchOrSampleSelect } from "./question";
+import { CoreQuestionNames, QuestionEnvLocal, QuestionEnvName, QuestionEnvSideLoading, QuestionRootFolder, QuestionSelectEnv, QuestionSelectSolution, SampleSelect, ScratchOptionNo, ScratchOptionYes, ScratchOrSampleSelect } from "./question";
 import * as fs from "fs-extra";
-import * as path from "path";
-
 
 export class Executor {
 
   @hooks([writeConfigMW])
   static async create( ctx: CoreContext, inputs: Inputs ): Promise<Result<string, FxError>> {
-     
+   
+    const qres = await this.getQuestionsForLifecycleTask(ctx, Task.create, inputs);
+    if (qres.isErr()) {
+      throw qres.error;
+    }
+    const node = qres.value;
+    if (node) {
+      const res: InputResult = await traverse(node, inputs, ctx.userInterface);
+      if (res.type === InputResultType.error) {
+        return err(res.error!);
+      } else if (res.type === InputResultType.cancel) {
+        return err(new UserError("UserCancel", "UserCancel", "Core"));
+      }
+    }
+
     // get solution
     ctx.solution = new DefaultSolution();
 
@@ -52,14 +67,12 @@ export class Executor {
     const solutionContext:SolutionContext = {
       ...ctx,
       solutionSetting: {
-          name: ctx.solution.name,
+          appName: "",
+          solutionName: ctx.solution.name,
           displayName: ctx.solution.displayName,
-          version: "1.0.0",
+          solutionVersion: "1.0.0",
           resources:[],
           resourceSettings:{}
-      },
-      solutionState: {
-          resourceStates:{}
       }
     };
 
@@ -175,7 +188,7 @@ export class Executor {
           solutionNames.push(k);
       }
       const selectSolution: SingleSelectQuestion = QuestionSelectSolution;
-      selectSolution.option = solutionNames;
+      selectSolution.staticOptions = solutionNames;
       const solutionSelectNode = new QTreeNode(selectSolution);
       scratchNode.addChild(solutionSelectNode);
       for (const [k, v] of ctx.globalSolutions) {
@@ -187,8 +200,6 @@ export class Executor {
             if (solutionNode.data) solutionSelectNode.addChild(solutionNode);
         }
       }
-      scratchNode.addChild(new QTreeNode(QuestionRootFolder));
-      scratchNode.addChild(new QTreeNode(QuestionAppName));
       sampleNode.addChild(new QTreeNode(QuestionRootFolder));
     } else if (ctx.solution) {
       const res = await ctx.solution.getQuestionsForLifecycleTask(solutionContext, task, inputs);
@@ -315,9 +326,9 @@ export class Executor {
   }
  
 
-  static getProvisionConfigs(ctx: CoreContext):ResourceConfigs{
-    const resources = ctx.projectSetting.solutionSetting?.resources;
-    const provisionConfigs: ResourceConfigs = {};
+  static getProvisionConfigs(ctx: CoreContext):Record<string,Json>{
+    const resources = ((ctx.projectSetting.solutionSetting)as TeamsSolutionSetting).activeResourcePlugins;
+    const provisionConfigs: Record<string,Json> = {};
     if(resources){
       for(const resource of resources){
         if(ctx.provisionTemplates){
@@ -332,9 +343,9 @@ export class Executor {
     return provisionConfigs;
   }
 
-  static getDeployConfigs(ctx: CoreContext):ResourceConfigs{
-    const resources = ctx.projectSetting.solutionSetting?.resources;
-    const deployConfigs: ResourceConfigs = {};
+  static getDeployConfigs(ctx: CoreContext):Record<string,Json>{
+    const resources = ((ctx.projectSetting.solutionSetting)as TeamsSolutionSetting).activeResourcePlugins;
+    const deployConfigs: Record<string,Json> = {};
     if(resources){
       for(const resource of resources){
         if(ctx.deployTemplates){
@@ -348,35 +359,21 @@ export class Executor {
     }
     return deployConfigs;
   }
-
-  static async validateFolder( folder: string,  inputs: Inputs
-    ): Promise<Result<unknown, FxError>> {
-    const appName = inputs[CoreQuestionNames.AppName] as string;
-    if (!appName) return ok(undefined);
-    const projectPath = path.resolve(folder, appName);
-    const exists = await fs.pathExists(projectPath);
-    if (exists)
-      return ok(
-        `Project folder already exists:${projectPath}, please change a different folder.`
-      );
-    return ok(undefined);
-  }
-
+ 
   static createSolutionContext(ctx: CoreContext):SolutionContext{
     const solutionContext:SolutionContext = {
       projectPath: ctx.projectPath,
-      ui: ctx.ui,
+      userInterface: ctx.userInterface,
       logProvider: ctx.logProvider,
       telemetryReporter: ctx.telemetryReporter,
       projectSetting: ctx.projectSetting,
       projectState: ctx.projectState,
-      solutionSetting: ctx.projectSetting.solutionSetting,
-      solutionState: ctx.projectState.solutionState
+      solutionSetting: ctx.projectSetting.solutionSetting
     };
     return solutionContext;
   }
 
-  static createSolutionEnvContext(ctx: CoreContext, resourceConfigs: ResourceConfigs):SolutionEnvContext{
+  static createSolutionEnvContext(ctx: CoreContext, resourceConfigs: Record<string,Json>):SolutionEnvContext{
     const envMeta = ctx.projectSetting.environments[ctx.projectSetting.currentEnv];
     const solutionContext:SolutionEnvContext = {
       ...this.createSolutionContext(ctx),

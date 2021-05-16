@@ -1,19 +1,62 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
-import {
-  AnyValidation,
-  FileValidation,
-  FuncValidation,
-  NumberValidation,
-  StringArrayValidation,
-  StringValidation,
-  ValidationSchema
-} from "./question";
 import * as fs from "fs-extra";
 import * as jsonschema from "jsonschema"; 
 import { Inputs } from "../types";
   
+
+
+/**
+ * Validation for Any Instance Type
+ * JSON Schema Validation reference: http://json-schema.org/draft/2019-09/json-schema-validation.html
+ */
+ export interface StaticValidation {
+  required?: boolean; // default value is true
+  equals?: unknown;
+}
+
+/**
+* //Validation for Strings
+*/
+export interface StringValidation extends StaticValidation {
+  maxLength?: number;
+  minLength?: number;
+  pattern?: string;
+  enum?: string[]; // the value must be contained in this list
+  startsWith?: string; //non-standard
+  endsWith?: string; //non-standard
+  includes?: string; //non-standard
+  equals?: string; //non-standard
+}
+
+/**
+* Validation for String Arrays
+*/
+export interface StringArrayValidation extends StaticValidation {
+  maxItems?: number;
+  minItems?: number;
+  uniqueItems?: boolean;
+  equals?: string[]; //non-standard
+  enum?: string[]; // non-standard all the values must be contained in this list
+  contains?: string; ////non-standard
+  containsAll?: string[]; ///non-standard, the values must contains all items in the array
+  containsAny?: string[]; ///non-standard, the values must contains any one in the array
+}
+
+/**
+* The validation is checked by a validFunc provided by user
+*/
+export interface FuncValidation {
+  validFunc?: (input: string|string[]|undefined, previousInputs?: Inputs) => string | undefined | Promise<string | undefined>;
+}
+
+export type ValidationSchema =
+  | StringValidation
+  | StringArrayValidation
+  | FuncValidation;
+
+
 export function getValidationFunction(
   validation: ValidationSchema,
   inputs: Inputs
@@ -38,22 +81,9 @@ export async function validate(
   }
   
   if(value === undefined){
-    if((validSchema as AnyValidation).required === true)
-      return `input value is required but undefined`;
+    if((validSchema as StaticValidation).required === true)
+      return `input value is required.`;
     return undefined;
-  }
-
-  {
-    //FileValidation
-    const fileValidation: FileValidation = validSchema as FileValidation;
-    if (fileValidation.exists !== undefined) {
-      const path = value as string;
-      const exists = await fs.pathExists(path);
-      if (fileValidation.exists !== exists) {
-        return `'${path}' does not meet condition of existance = ${fileValidation.exists}`;
-      }
-      return undefined;
-    }
   }
 
   {
@@ -94,34 +124,6 @@ export async function validate(
         if (!strToValidate.includes(stringValidation.includes)) {
           return `'${strToValidate}' does not meet includes:'${stringValidation.includes}'`;
         }
-      }
-    }
-  }
-
-  //NumberValidation
-  {
-    const numberValidation: NumberValidation = validSchema as NumberValidation;
-    const numberToValidate = Number(value);
-    const schema: any = {};
-    if (numberValidation.equals && typeof numberValidation.equals === "number")
-      schema.const = numberValidation.equals;
-    if (numberValidation.multipleOf) schema.multipleOf = numberValidation.multipleOf;
-    if (numberValidation.maximum) schema.maximum = numberValidation.maximum;
-    if (numberValidation.exclusiveMaximum)
-      schema.exclusiveMaximum = numberValidation.exclusiveMaximum;
-    if (numberValidation.minimum) schema.minimum = numberValidation.minimum;
-    if (numberValidation.exclusiveMinimum)
-      schema.exclusiveMinimum = numberValidation.exclusiveMinimum;
-    if (
-      numberValidation.enum &&
-      numberValidation.enum.length > 0 &&
-      typeof numberValidation.enum[0] === "number"
-    )
-      schema.enum = numberValidation.enum;
-    if (Object.keys(schema).length > 0) {
-      const validateResult = jsonschema.validate(numberToValidate, schema);
-      if (validateResult.errors && validateResult.errors.length > 0) {
-        return `'${numberToValidate}' ${validateResult.errors[0].message}`;
       }
     }
   }
