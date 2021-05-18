@@ -21,7 +21,9 @@ import {
   ProjectConfigs,
   Func,
   Json,
-  TeamsSolutionSetting
+  TeamsSolutionSetting,
+  InputResult,
+  traverse
 } from "fx-api";
 import { hooks } from "@feathersjs/hooks";
 import { concurrentMW } from "./middlewares/concurrent";
@@ -52,16 +54,15 @@ export class FxCore implements Core {
       ...GlobalTools,
       projectPath: "",
       projectSetting:{
-         
+        name: "myapp",
         environments:
         {
           default: {name:"default", local:false, sideloading:false}
         },
         currentEnv: "default",
         solutionSetting:{
-          appName: "myapp",
-          solutionName:"fx-solution-default",
-          solutionVersion:"1.0.0",
+          name:"fx-solution-default",
+          version:"1.0.0",
           resources:[],
           resourceSettings:{}
         }
@@ -133,7 +134,7 @@ export class FxCore implements Core {
   @hooks([errorHandlerMW])
   public async createProject(inputs: Inputs): Promise<Result<string, FxError>> {
     const coreContext = this.buildCleanCoreContext();
-    return await Executor.create(coreContext, inputs);
+    return await Executor.createProject(coreContext, inputs);
   }
 
   @hooks([errorHandlerMW, concurrentMW])
@@ -209,5 +210,6 @@ export class FxCore implements Core {
     const coreContext = await this.loadCoreContext(inputs.projectPath);
     return await Executor.getProjectConfigs(coreContext, inputs);
   }
+
 }
  

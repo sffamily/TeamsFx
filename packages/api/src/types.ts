@@ -26,6 +26,7 @@ export type Json = Record<string,unknown>;
  * project static settings
  */
 export interface ProjectSetting extends Json{
+    name:string,
     solutionSetting:SolutionSetting;
     environments: {
         [k : string] : EnvMeta;
@@ -38,9 +39,8 @@ export interface ProjectSetting extends Json{
  * solution settings
  */
 export interface SolutionSetting extends Json{  
-    appName:string;   
-    solutionName:string;
-    solutionVersion?:string;
+    name:string;
+    version?:string;
 }
  
 export interface TeamsSolutionSetting extends SolutionSetting{

@@ -27,9 +27,7 @@ import {
   Func,
   TeamsSolutionSetting,
   Json,
-  InputResult,
-  traverse,
-  InputResultType,
+  StringValidation,
 } from "fx-api";
 import { hooks } from "@feathersjs/hooks";
 import { writeConfigMW } from "./middlewares/config";
@@ -38,28 +36,43 @@ import * as error from "./error";
 import { CoreContext } from "./context";
 import { DefaultSolution } from "../plugins/solution/default";
 import { deepCopy, initFolder, mergeDict, replaceTemplateVariable } from "./tools";
-import { CoreQuestionNames, QuestionEnvLocal, QuestionEnvName, QuestionEnvSideLoading, QuestionRootFolder, QuestionSelectEnv, QuestionSelectSolution, SampleSelect, ScratchOptionNo, ScratchOptionYes, ScratchOrSampleSelect } from "./question";
+import { AppNameQuestion, CoreQuestionNames, QuestionEnvLocal, QuestionEnvName, QuestionEnvSideLoading, QuestionSelectEnv, QuestionSelectSolution, RootFolderQuestion, SampleSelect, ScratchOptionNo, ScratchOptionYes, ScratchOrSampleSelect } from "./question";
 import * as fs from "fs-extra";
+import * as path from "path";
+import * as jsonschema from "jsonschema";
+import { QuestionMW } from "./middlewares/question";
 
 export class Executor {
 
-  @hooks([writeConfigMW])
-  static async create( ctx: CoreContext, inputs: Inputs ): Promise<Result<string, FxError>> {
-   
-    const qres = await this.getQuestionsForLifecycleTask(ctx, Task.create, inputs);
-    if (qres.isErr()) {
-      throw qres.error;
+  @hooks([QuestionMW, writeConfigMW])
+  static async createProject( ctx: CoreContext, inputs: Inputs ): Promise<Result<string, FxError>> {
+    const appName = inputs[CoreQuestionNames.AppName] as string;
+    const folder = inputs[CoreQuestionNames.Folder] as string;
+    const projectPath = path.resolve(`${folder}/${appName}`);
+    const folderExist = await fs.pathExists(projectPath);
+    if (folderExist) {
+      return err(
+        new UserError(
+          "ProjectFolderExist",
+          `Project folder exsits:${projectPath}`,
+          "Solution"
+        )
+      );
     }
-    const node = qres.value;
-    if (node) {
-      const res: InputResult = await traverse(node, inputs, ctx.userInterface);
-      if (res.type === InputResultType.error) {
-        return err(res.error!);
-      } else if (res.type === InputResultType.cancel) {
-        return err(new UserError("UserCancel", "UserCancel", "Core"));
-      }
+    const validateResult = jsonschema.validate(appName, {
+      pattern: (AppNameQuestion.validation as StringValidation).pattern,
+    });
+    if (validateResult.errors && validateResult.errors.length > 0) {
+      return err(
+        new UserError(
+          "InvalidInput",
+          `${validateResult.errors[0].message}`,
+          "Solution"
+        )
+      );
     }
-
+    ctx.projectPath = projectPath;
+    ctx.projectSetting.name = appName;
     // get solution
     ctx.solution = new DefaultSolution();
 
@@ -67,10 +80,8 @@ export class Executor {
     const solutionContext:SolutionContext = {
       ...ctx,
       solutionSetting: {
-          appName: "",
-          solutionName: ctx.solution.name,
-          displayName: ctx.solution.displayName,
-          solutionVersion: "1.0.0",
+          name: ctx.solution.name, 
+          version: "1.0.0",
           resources:[],
           resourceSettings:{}
       }
@@ -200,7 +211,9 @@ export class Executor {
             if (solutionNode.data) solutionSelectNode.addChild(solutionNode);
         }
       }
-      sampleNode.addChild(new QTreeNode(QuestionRootFolder));
+      scratchNode.addChild(new QTreeNode(RootFolderQuestion));
+      scratchNode.addChild(new QTreeNode(AppNameQuestion));
+      sampleNode.addChild(new QTreeNode(RootFolderQuestion));
     } else if (ctx.solution) {
       const res = await ctx.solution.getQuestionsForLifecycleTask(solutionContext, task, inputs);
       if (res.isErr()) return res;

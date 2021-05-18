@@ -31,5 +31,6 @@ export enum Task
     publish = "publish",
     createEnv = "createEnv",
     removeEnv = "removeEnv",
-    switchEnv = "switchEnv"
+    switchEnv = "switchEnv",
+    userTask = "userTask"
 }

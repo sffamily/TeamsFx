@@ -1,9 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
-import * as jsonschema from "jsonschema";
-import * as path from "path";
-import * as fs from "fs-extra";
+
 import {
   FolderQuestion,
   FuncQuestion,
@@ -20,8 +18,7 @@ import {
 } from "fx-api";
 
 export enum SolutionQuestionNames {
-  AppName = "app-name",
-  Folder = "folder",
+
   Capabilities = "capabilities",
   TabScopes = "tab-scopes",
   HostType = "host-type",
@@ -31,43 +28,6 @@ export enum SolutionQuestionNames {
   AskSub = "subscription",
   ProgrammingLanguage = "programming-language",
 }
-
-export const ApplicationNamePattern = "^[a-zA-Z][\\da-zA-Z]+$";
-
-export const AppNameQuestion: TextInputQuestion = {
-  type: NodeType.text,
-  name: SolutionQuestionNames.AppName,
-  title: "Application name",
-  validation: {
-    validFunc: async (
-      input: string | string[] | undefined,
-      previousInputs?: Inputs
-    ): Promise<string | undefined> => {
-      const folder = previousInputs![SolutionQuestionNames.Folder] as string;
-      if (!folder) return undefined;
-      const schema = {
-        pattern: ApplicationNamePattern,
-      };
-      const appName = input as string;
-      const validateResult = jsonschema.validate(appName, schema);
-      if (validateResult.errors && validateResult.errors.length > 0) {
-        return "Application name must start with a letter and can only contain letters and digits.";
-      }
-      const projectPath = path.resolve(folder, appName);
-      const exists = await fs.pathExists(projectPath);
-      if (exists)
-        return `Path exists: ${projectPath}. Select a different application name.`;
-      return undefined;
-    },
-  },
-  placeholder: "Application name",
-};
-
-export const RootFolderQuestion: FolderQuestion = {
-  type: NodeType.folder,
-  name: SolutionQuestionNames.Folder,
-  title: "Workspace folder",
-};
 
 export const TabOptionItem: OptionItem = {
   id: "Tab",

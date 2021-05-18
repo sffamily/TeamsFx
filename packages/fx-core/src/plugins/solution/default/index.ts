@@ -18,24 +18,25 @@ import {
   Func,
   NodeType,
   SolutionScaffoldResult,
+  TeamsSolutionSetting,
+  SystemError,
   err,
-  UserError,
-  StringValidation,
 } from "fx-api";
 import {
-  AppNameQuestion,
+  AzureResourceApim,
+  AzureResourceFunction,
+  AzureResourceSQL,
   AzureResourcesQuestion,
+  BotOptionItem,
   CapabilitiesQuestion,
   FrontendHostTypeQuestion,
   HostTypeOptionAzure,
+  MessageExtensionItem,
   ProgrammingLanguageQuestion,
-  RootFolderQuestion,
   SolutionQuestionNames,
   TabOptionItem,
 } from "./question";
-import * as path from "path";
-import * as fs from "fs-extra";
-import * as jsonschema from "jsonschema";
+
 export class DefaultSolution implements SolutionPlugin {
   name = "fx-solution-default";
   displayName = "Default Solution";
@@ -43,33 +44,11 @@ export class DefaultSolution implements SolutionPlugin {
     ctx: SolutionContext,
     inputs: Inputs
   ): Promise<Result<SolutionScaffoldResult, FxError>> {
-    const appName = inputs[SolutionQuestionNames.AppName] as string;
-    const folder = inputs[SolutionQuestionNames.Folder] as string;
-    const projectPath = path.resolve(`${folder}/${appName}`);
-    const folderExist = await fs.pathExists(projectPath);
-    if (folderExist) {
-      return err(
-        new UserError(
-          "ProjectFolderExist",
-          `Project folder exsits:${projectPath}`,
-          "Solution"
-        )
-      );
-    }
-    const validateResult = jsonschema.validate(appName, {
-      pattern: (AppNameQuestion.validation as StringValidation).pattern,
-    });
-    if (validateResult.errors && validateResult.errors.length > 0) {
-      return err(
-        new UserError(
-          "InvalidInput",
-          `${validateResult.errors[0].message}`,
-          "Solution"
-        )
-      );
-    }
-    ctx.projectPath = projectPath;
-    ctx.solutionSetting.resources = ["fx-resource-frontend"];
+    const solutionSettingRes = this.fillInSolutionSettings(ctx, inputs);
+    if(solutionSettingRes.isErr()) return err(solutionSettingRes.error);
+    const solutionSetting = solutionSettingRes.value;
+    solutionSetting.activeResourcePlugins = ["fx-resource-frontend"];
+    ctx.solutionSetting = solutionSetting;
     return ok({
       provisionTemplates: {
         "fx-resource-frontend": {
@@ -83,6 +62,44 @@ export class DefaultSolution implements SolutionPlugin {
       },
     });
   }
+  fillInSolutionSettings(ctx: SolutionContext, inputs: Inputs): Result<TeamsSolutionSetting, FxError> {
+    const projectSetting = ctx.projectSetting;
+    const capabilities = inputs[SolutionQuestionNames.Capabilities] as string[] || [];
+    if (!capabilities || capabilities.length === 0) {
+      return err( new SystemError("InvalidInput", "Invalid capabilities", "Solution"));
+    }
+    let hostType = inputs[SolutionQuestionNames.HostType] as string;
+    if (capabilities.includes(BotOptionItem.id) || capabilities.includes(MessageExtensionItem.id))
+      hostType = HostTypeOptionAzure.id;
+    if (!hostType) {
+      return err(new SystemError("InvalidInput", "Invalid host-type", "Solution"));
+    }
+    let azureResources: string[] | undefined;
+    if (hostType === HostTypeOptionAzure.id && capabilities.includes(TabOptionItem.id)) {
+      azureResources = inputs[SolutionQuestionNames.AzureResources] as string[];
+      if (azureResources) {
+        if (
+          (azureResources.includes(AzureResourceSQL.id) ||
+            azureResources.includes(AzureResourceApim.id)) &&
+          !azureResources.includes(AzureResourceFunction.id)
+        ) {
+          azureResources.push(AzureResourceFunction.id);
+        }
+      } else azureResources = [];
+    }
+    const solutionSetting: TeamsSolutionSetting = {
+      name: projectSetting.solutionSetting.name,
+      version: projectSetting.solutionSetting.version,
+      hostType: hostType,
+      capabilities: capabilities,
+      azureResources: azureResources || [],
+      activeResourcePlugins: [],
+      resourceSettings:{}
+    };
+    projectSetting.solutionSetting = solutionSetting;
+    return ok(solutionSetting);
+  }
+
   async buildArtifacts(
     ctx: SolutionContext,
     inputs: Inputs
@@ -250,12 +267,6 @@ export class DefaultSolution implements SolutionPlugin {
       const programmingLanguage = new QTreeNode(ProgrammingLanguageQuestion);
       programmingLanguage.condition = { minItems: 1 };
       capNode.addChild(programmingLanguage);
-
-      // 1.4
-      capNode.addChild(new QTreeNode(RootFolderQuestion));
-
-      //1.5
-      capNode.addChild(new QTreeNode(AppNameQuestion));
 
       return ok(node);
     }

@@ -9,15 +9,19 @@ import {
   StaticOptions,
   TextInputQuestion,
 } from "fx-api";
+import * as jsonschema from "jsonschema";
+import * as path from "path";
+import * as fs from "fs-extra";
 
 export enum CoreQuestionNames {
+  AppName = "app-name",
+  Folder = "folder",
   Solution = "solution",
   CreateFromScratch = "scratch",
   Samples = "samples",
   EnvName = "env-name",
   EnvLocal = "env-local",
   EnvSideLoading = "env-sideloading",
-  Folder = "folder",
 }
 
 export const QuestionSelectSolution: SingleSelectQuestion = {
@@ -126,7 +130,41 @@ export const QuestionSelectEnv: SingleSelectQuestion = {
   },
 };
 
-export const QuestionRootFolder: FolderQuestion = {
+
+export const ApplicationNamePattern = "^[a-zA-Z][\\da-zA-Z]+$";
+
+export const AppNameQuestion: TextInputQuestion = {
+  type: NodeType.text,
+  name: CoreQuestionNames.AppName,
+  title: "Application name",
+  validation: {
+    validFunc: async (
+      input: string | string[] | undefined,
+      previousInputs?: Inputs
+    ): Promise<string | undefined> => {
+      const folder = previousInputs![CoreQuestionNames.Folder] as string;
+      if (!folder) return undefined;
+      const schema = {
+        pattern: ApplicationNamePattern,
+      };
+      const appName = input as string;
+      const validateResult = jsonschema.validate(appName, schema);
+      if (validateResult.errors && validateResult.errors.length > 0) {
+        return "Application name must start with a letter and can only contain letters and digits.";
+      }
+      const projectPath = path.resolve(folder, appName);
+      const exists = await fs.pathExists(projectPath);
+      if (exists)
+        return `Path exists: ${projectPath}. Select a different application name.`;
+      return undefined;
+    },
+  },
+  placeholder: "Application name",
+};
+
+
+
+export const RootFolderQuestion: FolderQuestion = {
   type: NodeType.folder,
   name: CoreQuestionNames.Folder,
   title: "Workspace folder",
